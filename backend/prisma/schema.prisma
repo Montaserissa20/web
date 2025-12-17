@@ -1,0 +1,168 @@
+generator client {
+  // Use JS client so Node can import the generated output without TS transpilation
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model animal_images {
+  id         Int      @id @default(autoincrement()) @db.UnsignedInt
+  animal_id  Int      @db.UnsignedInt
+  image_url  String   @db.VarChar(500)
+  created_at DateTime @default(now()) @db.Timestamp(0)
+  animal     animals  @relation(fields: [animal_id], references: [id], onDelete: Cascade)
+
+  @@index([animal_id], map: "fk_animal_images_animal")
+}
+
+model animals {
+  id               Int             @id @default(autoincrement()) @db.UnsignedInt
+  user_id          Int             @db.UnsignedInt
+  title            String          @db.VarChar(150)
+  slug             String          @unique(map: "slug") @db.VarChar(200)
+  species          String          @db.VarChar(50)
+  breed            String?         @db.VarChar(100)
+  age              Int?            @db.UnsignedSmallInt
+  gender           animals_gender? @default(unknown)
+  price            Decimal?        @db.Decimal(10, 2)
+  currency         String?         @default("USD") @db.VarChar(10)
+  country          String?         @db.VarChar(100)
+  city             String?         @db.VarChar(100)
+  description      String?         @db.Text
+  status           animals_status  @default(pending)
+  rejection_reason String?         @db.Text
+  is_available     Boolean         @default(true)
+  views            Int             @default(0) @db.UnsignedInt
+  created_at       DateTime        @default(now()) @db.Timestamp(0)
+  updated_at       DateTime        @default(now()) @db.Timestamp(0)
+  animal_images    animal_images[]
+
+  @@index([user_id], map: "fk_animals_user")
+}
+
+model announcements {
+  id           Int       @id @default(autoincrement()) @db.UnsignedInt
+  title        String    @db.VarChar(200)
+  content      String    @db.Text
+  image_url    String?   @db.VarChar(500)
+  created_by   Int?      @db.UnsignedInt
+  published_at DateTime? @db.Timestamp(0)
+  is_visible   Boolean   @default(true)
+  created_at   DateTime  @default(now()) @db.Timestamp(0)
+  updated_at   DateTime  @default(now()) @db.Timestamp(0)
+
+  @@index([created_by], map: "fk_announcements_user")
+}
+
+model faq {
+  id          Int      @id @default(autoincrement()) @db.UnsignedInt
+  question    String   @db.Text
+  answer      String   @db.Text
+  category    String   @default("General") @db.VarChar(100)
+  order_index Int      @default(0)
+  is_visible  Boolean  @default(true)
+  created_at  DateTime @default(now()) @db.Timestamp(0)
+  updated_at  DateTime @default(now()) @db.Timestamp(0)
+}
+
+model favorites {
+  id         Int      @id @default(autoincrement()) @db.UnsignedInt
+  user_id    Int      @db.UnsignedInt
+  animal_id  Int      @db.UnsignedInt
+  created_at DateTime @default(now()) @db.Timestamp(0)
+
+  @@unique([user_id, animal_id], map: "uc_favorites_user_animal")
+  @@index([animal_id], map: "fk_favorites_animal")
+}
+
+model reports {
+  id         Int            @id @default(autoincrement()) @db.UnsignedInt
+  animal_id  Int            @db.UnsignedInt
+  user_id    Int?           @db.UnsignedInt
+  reason     String         @db.Text
+  status     reports_status @default(open)
+  created_at DateTime       @default(now()) @db.Timestamp(0)
+
+  @@index([animal_id], map: "fk_reports_animal")
+  @@index([user_id], map: "fk_reports_user")
+}
+
+model users {
+  id         Int        @id @default(autoincrement()) @db.UnsignedInt
+  name       String     @db.VarChar(100)
+  email      String     @unique(map: "email") @db.VarChar(255)
+  password   String     @db.VarChar(255)
+  role       users_role @default(user)
+  country    String?    @db.VarChar(100)
+  city       String?    @db.VarChar(100)
+  phone      String?    @db.VarChar(20)
+  avatar_url String?    @db.VarChar(500)
+  created_at DateTime   @default(now()) @db.Timestamp(0)
+  updated_at DateTime   @default(now()) @db.Timestamp(0)
+  is_banned  Boolean    @default(false)
+}
+
+model visits {
+  id         BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  user_id    Int?     @db.UnsignedInt
+  ip_address String?  @db.VarChar(45)
+  user_agent String?  @db.VarChar(255)
+  visited_at DateTime @default(now()) @db.Timestamp(0)
+
+  @@index([user_id], map: "fk_visits_user")
+}
+
+model conversations {
+  id         Int        @id @default(autoincrement()) @db.UnsignedInt
+  user1_id   Int        @db.UnsignedInt
+  user2_id   Int        @db.UnsignedInt
+  animal_id  Int?       @db.UnsignedInt
+  created_at DateTime   @default(now()) @db.Timestamp(0)
+  updated_at DateTime   @default(now()) @db.Timestamp(0)
+  messages   messages[]
+
+  @@unique([user1_id, user2_id, animal_id], map: "uc_conversation_users_animal")
+  @@index([user1_id], map: "fk_conversations_user1")
+  @@index([user2_id], map: "fk_conversations_user2")
+  @@index([animal_id], map: "fk_conversations_animal")
+}
+
+model messages {
+  id              Int           @id @default(autoincrement()) @db.UnsignedInt
+  conversation_id Int           @db.UnsignedInt
+  sender_id       Int           @db.UnsignedInt
+  content         String        @db.Text
+  is_read         Boolean       @default(false)
+  created_at      DateTime      @default(now()) @db.Timestamp(0)
+  conversation    conversations @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+
+  @@index([conversation_id], map: "fk_messages_conversation")
+  @@index([sender_id], map: "fk_messages_sender")
+}
+
+enum users_role {
+  user
+  moderator
+  admin
+}
+
+enum reports_status {
+  open
+  reviewing
+  closed
+}
+
+enum animals_gender {
+  male
+  female
+  unknown
+}
+
+enum animals_status {
+  pending
+  approved
+  rejected
+}
