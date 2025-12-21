@@ -20,7 +20,7 @@ import { ImageGallery } from '@/components/common/ImageGallery';
 import { ListingCard } from '@/components/common/ListingCard';
 import { LoadingPage } from '@/components/common/LoadingSpinner';
 import { ErrorState } from '@/components/common/ErrorState';
-import { listingsApi, reportsApi, messagesApi } from '@/services/api';
+import { listingsApi, reportsApi, messagesApi, favoritesApi } from '@/services/api';
 import { Listing } from '@/types';
 import { formatPrice, formatAge, formatRelativeTime, capitalize, getInitials, getSpeciesColor, cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -56,6 +56,14 @@ export default function ListingDetail() {
           // Record view (non-blocking)
           listingsApi.recordView(response.data.id);
 
+          // Check if favorited (if user is logged in)
+          if (isAuthenticated) {
+            const favResponse = await favoritesApi.checkFavorite(response.data.id);
+            if (favResponse.success) {
+              setIsFavorited(favResponse.data.favorited);
+            }
+          }
+
           // Fetch similar listings
           const similarResponse = await listingsApi.getAll(
             { species: [response.data.species] },
@@ -79,16 +87,36 @@ export default function ListingDetail() {
     };
 
     fetchListing();
-  }, [slug]);
+  }, [slug, isAuthenticated]);
 
-  const handleFavorite = () => {
-    setIsFavorited(!isFavorited);
-    toast({
-      title: isFavorited ? 'Removed from favorites' : 'Added to favorites',
-      description: isFavorited
-        ? 'This listing has been removed from your favorites.'
-        : 'This listing has been added to your favorites.',
-    });
+  const handleFavorite = async () => {
+    if (!isAuthenticated) {
+      toast({
+        title: 'Login Required',
+        description: 'Please log in to add favorites.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!listing) return;
+
+    const response = await favoritesApi.toggle(listing.id);
+    if (response.success) {
+      setIsFavorited(response.data.favorited);
+      toast({
+        title: response.data.favorited ? 'Added to favorites' : 'Removed from favorites',
+        description: response.data.favorited
+          ? 'This listing has been added to your favorites.'
+          : 'This listing has been removed from your favorites.',
+      });
+    } else {
+      toast({
+        title: 'Error',
+        description: 'Failed to update favorites.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleContact = async () => {

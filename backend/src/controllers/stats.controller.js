@@ -47,3 +47,26 @@ exports.getSiteTraffic = async (req, res) => {
     res.status(500).json({ success: false, message: 'Failed to fetch site traffic' });
   }
 };
+
+// GET /api/stats/dashboard - Get user dashboard stats
+exports.getUserDashboardStats = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const stats = await StatsService.getUserDashboardStats(userId);
+    res.json({ success: true, data: stats });
+  } catch (err) {
+    console.error('getUserDashboardStats error:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch dashboard stats' });
+  }
+};
+
+// GET /api/stats/admin - Get admin stats
+exports.getAdminStats = async (req, res) => {
+  try {
+    const stats = await StatsService.getAdminStats();
+    res.json({ success: true, data: stats });
+  } catch (err) {
+    console.error('getAdminStats error:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch admin stats' });
+  }
+};

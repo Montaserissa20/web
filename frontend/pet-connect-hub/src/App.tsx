@@ -52,10 +52,29 @@ const queryClient = new QueryClient();
 const App = () => {
   // 🔹 Record a visit once when the app loads
   useEffect(() => {
+    // Track immediately on load
     statsApi.trackVisit().catch((err) => {
       // optional: log but don’t break the app
       console.error("Failed to track visit", err);
     });
+
+    // Heartbeat: track every 2 minutes to keep user "online"
+    const heartbeatInterval = setInterval(() => {
+      statsApi.trackVisit().catch(() => {});
+    }, 2 * 60 * 1000); // 2 minutes
+
+    // Track when user returns to the tab
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        statsApi.trackVisit().catch(() => {});
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(heartbeatInterval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   return (

@@ -207,3 +207,17 @@ export interface Conversation {
   createdAt: string;
   updatedAt: string;
 }
+
+// Notification types
+export type NotificationType = 'message' | 'listing_approved' | 'listing_rejected' | 'announcement';
+
+export interface Notification {
+  id: number;
+  userId: number;
+  type: NotificationType;
+  title: string;
+  message: string;
+  link?: string | null;
+  isRead: boolean;
+  createdAt: string;
+}

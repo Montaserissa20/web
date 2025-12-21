@@ -20,13 +20,8 @@ export function OnlineUsers() {
 
     fetchStats();
 
-    // Simulate real-time updates
-    const interval = setInterval(() => {
-      setCount(prev => {
-        const change = Math.floor(Math.random() * 10) - 5;
-        return Math.max(100, prev + change);
-      });
-    }, 5000);
+    // Refresh every 30 seconds to get real-time updates
+    const interval = setInterval(fetchStats, 30 * 1000);
 
     return () => clearInterval(interval);
   }, []);

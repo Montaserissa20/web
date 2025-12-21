@@ -1,17 +1,39 @@
-import { useEffect, useState } from 'react';
-import { Users, ListPlus, Globe, Clock, Eye, UserCheck } from 'lucide-react';
+import { useEffect, useState, useCallback } from 'react';
+import { Users, ListPlus, Globe, Clock, Eye, UserCheck, RefreshCw } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { statsApi } from '@/services/api';
 import { AdminStats, SiteStats } from '@/types';
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [siteStats, setSiteStats] = useState<SiteStats | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+
+  const fetchStats = useCallback(async () => {
+    const [adminRes, siteRes] = await Promise.all([
+      statsApi.getAdminStats(),
+      statsApi.getSiteStats(),
+    ]);
+    if (adminRes.success) setStats(adminRes.data);
+    if (siteRes.success) setSiteStats(siteRes.data);
+    setLastUpdated(new Date());
+  }, []);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchStats();
+    setIsRefreshing(false);
+  };
 
   useEffect(() => {
-    statsApi.getAdminStats().then(res => res.success && setStats(res.data));
-    statsApi.getSiteStats().then(res => res.success && setSiteStats(res.data));
-  }, []);
+    fetchStats();
+
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(fetchStats, 30 * 1000);
+    return () => clearInterval(interval);
+  }, [fetchStats]);
 
   const cards = [
     { title: 'Total Users', value: stats?.totalUsers || 0, icon: Users, color: 'text-primary', bg: 'bg-primary/10' },
@@ -27,8 +49,24 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-semibold">Admin Dashboard</h2>
-      
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold">Admin Dashboard</h2>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-muted-foreground">
+            Last updated: {lastUpdated.toLocaleTimeString()}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
+      </div>
+
       {/* Main Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {cards.map((c) => (

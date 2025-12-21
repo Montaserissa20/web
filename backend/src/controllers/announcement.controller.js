@@ -1,5 +1,6 @@
 // src/controllers/announcement.controller.js
 const AnnouncementModel = require('../models/announcement.model');
+const NotificationService = require('../services/notification.service');
 
 // GET /api/announcements
 exports.getAll = async (req, res) => {
@@ -42,6 +43,15 @@ exports.create = async (req, res) => {
       imageUrl,
       userId,
     });
+
+    // Send notification to all users about the new announcement
+    if (isVisible !== false) {
+      try {
+        await NotificationService.notifyNewAnnouncement(title, announcement.id);
+      } catch (notifErr) {
+        console.error('Failed to send announcement notifications:', notifErr);
+      }
+    }
 
     res.status(201).json({ success: true, data: announcement });
   } catch (err) {

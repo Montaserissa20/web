@@ -1,6 +1,7 @@
 // src/services/message.service.js
 const MessageModel = require('../models/message.model');
 const prisma = require('../config/prismaClient');
+const NotificationService = require('./notification.service');
 
 // Start or get a conversation with another user
 exports.startConversation = async (userId, otherUserId, animalId = null) => {
@@ -112,7 +113,29 @@ exports.sendMessage = async (conversationId, senderId, content) => {
     throw new Error('Conversation not found or access denied');
   }
 
-  return MessageModel.sendMessage(conversationId, senderId, content.trim());
+  const message = await MessageModel.sendMessage(conversationId, senderId, content.trim());
+
+  // Send notification to the recipient
+  try {
+    const sender = await prisma.users.findUnique({
+      where: { id: Number(senderId) },
+      select: { name: true },
+    });
+
+    const recipientId = Number(conversation.otherUserId);
+    if (recipientId) {
+      await NotificationService.notifyNewMessage(
+        recipientId,
+        sender?.name || 'Someone',
+        conversationId
+      );
+    }
+  } catch (err) {
+    console.error('Failed to send message notification:', err);
+    // Don't fail the message send if notification fails
+  }
+
+  return message;
 };
 
 // Get more messages (pagination)

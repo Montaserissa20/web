@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { NotificationBell } from '@/components/NotificationBell';
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Overview', exact: true },
@@ -48,6 +49,7 @@ export default function DashboardLayout() {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              <NotificationBell />
               <ThemeToggle />
               <Link to="/dashboard/listings/create">
                 <Button>

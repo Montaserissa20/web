@@ -1,5 +1,6 @@
 // src/controllers/adminAnimals.controller.js
 const AnimalService = require('../services/animal.service');
+const NotificationService = require('../services/notification.service');
 
 exports.listAll = async (req, res) => {
   try {
@@ -18,6 +19,18 @@ exports.approve = async (req, res) => {
   try {
     const { id } = req.params;
     const updated = await AnimalService.updateStatusAdmin(id, 'approved');
+
+    // Send notification to the listing owner
+    try {
+      await NotificationService.notifyListingApproved(
+        updated.sellerId,
+        updated.title,
+        updated.id
+      );
+    } catch (notifErr) {
+      console.error('Failed to send approval notification:', notifErr);
+    }
+
     res.json({
       success: true,
       data: updated,
@@ -36,7 +49,20 @@ exports.reject = async (req, res) => {
   try {
     const { id } = req.params;
     const { reason } = req.body;
-    const updated = await AnimalService.updateStatusAdmin(id, 'rejected', reason || 'No reason provided');
+    const rejectReason = reason || 'No reason provided';
+    const updated = await AnimalService.updateStatusAdmin(id, 'rejected', rejectReason);
+
+    // Send notification to the listing owner
+    try {
+      await NotificationService.notifyListingRejected(
+        updated.sellerId,
+        updated.title,
+        rejectReason
+      );
+    } catch (notifErr) {
+      console.error('Failed to send rejection notification:', notifErr);
+    }
+
     res.json({
       success: true,
       data: updated,

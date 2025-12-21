@@ -30,6 +30,7 @@ import {
   UserRole,
   SiteStats,
   AdminUser,
+  Notification,
 } from '@/types';
 
 import {
@@ -1155,21 +1156,83 @@ export const reportsApi = {
 // ============ FAVORITES API ============
 
 export const favoritesApi = {
-  async getByUser(userId: string): Promise<ApiResponse<Listing[]>> {
-    await delay();
-    // For now, return first 3 listings as mock favorites
-    const favorites = mockListings.slice(0, 3);
-    return { data: favorites, success: true };
+  async getByUser(_userId: string): Promise<ApiResponse<Listing[]>> {
+    try {
+      const res = await apiClient.get<{ success: boolean; data: any[]; message?: string }>(
+        '/favorites'
+      );
+
+      if (res.data?.success && res.data.data) {
+        const listings = res.data.data.map(normalizeListing);
+        return { data: listings, success: true };
+      }
+
+      return { data: [], success: false, message: res.data?.message || 'Failed to get favorites' };
+    } catch (error) {
+      console.error('favoritesApi.getByUser error:', error);
+      return { data: [], success: false, message: 'Failed to get favorites' };
+    }
   },
 
-  async add(userId: string, listingId: string): Promise<ApiResponse<null>> {
-    await delay();
-    return { data: null, success: true, message: 'Added to favorites' };
+  async getFavoriteIds(): Promise<ApiResponse<number[]>> {
+    try {
+      const res = await apiClient.get<{ success: boolean; data: number[] }>('/favorites/ids');
+      if (res.data?.success) {
+        return { data: res.data.data || [], success: true };
+      }
+      return { data: [], success: false };
+    } catch (error) {
+      console.error('favoritesApi.getFavoriteIds error:', error);
+      return { data: [], success: false };
+    }
   },
 
-  async remove(userId: string, listingId: string): Promise<ApiResponse<null>> {
-    await delay();
-    return { data: null, success: true, message: 'Removed from favorites' };
+  async add(_userId: string, listingId: string): Promise<ApiResponse<{ favorited: boolean }>> {
+    try {
+      const res = await apiClient.post<{ success: boolean; data: { favorited: boolean }; message?: string }>(
+        `/favorites/${listingId}`
+      );
+      return { data: res.data?.data || { favorited: true }, success: res.data?.success || false, message: res.data?.message };
+    } catch (error) {
+      console.error('favoritesApi.add error:', error);
+      return { data: { favorited: false }, success: false, message: 'Failed to add favorite' };
+    }
+  },
+
+  async remove(_userId: string, listingId: string): Promise<ApiResponse<{ favorited: boolean }>> {
+    try {
+      const res = await apiClient.delete<{ success: boolean; data: { favorited: boolean }; message?: string }>(
+        `/favorites/${listingId}`
+      );
+      return { data: res.data?.data || { favorited: false }, success: res.data?.success || false, message: res.data?.message };
+    } catch (error) {
+      console.error('favoritesApi.remove error:', error);
+      return { data: { favorited: false }, success: false, message: 'Failed to remove favorite' };
+    }
+  },
+
+  async toggle(listingId: string): Promise<ApiResponse<{ favorited: boolean }>> {
+    try {
+      const res = await apiClient.post<{ success: boolean; data: { favorited: boolean }; message?: string }>(
+        `/favorites/${listingId}/toggle`
+      );
+      return { data: res.data?.data || { favorited: false }, success: res.data?.success || false, message: res.data?.message };
+    } catch (error) {
+      console.error('favoritesApi.toggle error:', error);
+      return { data: { favorited: false }, success: false, message: 'Failed to toggle favorite' };
+    }
+  },
+
+  async checkFavorite(listingId: string): Promise<ApiResponse<{ favorited: boolean }>> {
+    try {
+      const res = await apiClient.get<{ success: boolean; data: { favorited: boolean } }>(
+        `/favorites/check/${listingId}`
+      );
+      return { data: res.data?.data || { favorited: false }, success: res.data?.success || false };
+    } catch (error) {
+      console.error('favoritesApi.checkFavorite error:', error);
+      return { data: { favorited: false }, success: false };
+    }
   },
 };
 
@@ -1220,35 +1283,69 @@ export const statsApi = {
     }
   },
 
-  // --- your existing mock implementations (unchanged) ---
+  // Get user dashboard stats (real backend)
   async getUserDashboardStats(
-    userId: string
+    _userId: string
   ): Promise<ApiResponse<DashboardStats>> {
-    await delay();
-    const userListings = mockListings.filter((l) => l.sellerId === userId);
-    const stats: DashboardStats = {
-      totalListings: userListings.length,
-      activeListings: userListings.filter((l) => l.status === 'approved')
-        .length,
-      totalViews: userListings.reduce((sum, l) => sum + l.views, 0),
-      totalFavorites: userListings.reduce((sum, l) => sum + l.favorites, 0),
-    };
-    return { data: stats, success: true };
+    try {
+      const res = await apiClient.get<{ success: boolean; data: DashboardStats; message?: string }>(
+        '/stats/dashboard'
+      );
+
+      if (res.data?.success && res.data.data) {
+        return { data: res.data.data, success: true };
+      }
+
+      // Fallback to mock
+      return {
+        data: { totalListings: 0, activeListings: 0, totalViews: 0, totalFavorites: 0 },
+        success: true,
+        message: 'Using default stats',
+      };
+    } catch (error) {
+      console.error('getUserDashboardStats error:', error);
+      return {
+        data: { totalListings: 0, activeListings: 0, totalViews: 0, totalFavorites: 0 },
+        success: false,
+        message: 'Failed to fetch stats',
+      };
+    }
   },
 
   async getAdminStats(): Promise<ApiResponse<AdminStats>> {
-    await delay();
-    const stats: AdminStats = {
-      totalUsers: mockUsers.length,
-      totalListings: mockListings.length,
-      pendingListings: mockListings.filter((l) => l.status === 'pending')
-        .length,
-      totalCountries: new Set(mockListings.map((l) => l.country)).size,
-      totalCities: new Set(mockListings.map((l) => l.city)).size,
-      newUsersThisMonth: 12,
-      newListingsThisMonth: 45,
-    };
-    return { data: stats, success: true };
+    try {
+      const res = await apiClient.get<{ success: boolean; data: AdminStats; message?: string }>(
+        '/stats/admin'
+      );
+
+      if (res.data?.success && res.data.data) {
+        return { data: res.data.data, success: true };
+      }
+
+      // Fallback to mock
+      const stats: AdminStats = {
+        totalUsers: mockUsers.length,
+        totalListings: mockListings.length,
+        pendingListings: mockListings.filter((l) => l.status === 'pending').length,
+        totalCountries: new Set(mockListings.map((l) => l.country)).size,
+        totalCities: new Set(mockListings.map((l) => l.city)).size,
+        newUsersThisMonth: 0,
+        newListingsThisMonth: 0,
+      };
+      return { data: stats, success: true };
+    } catch (error) {
+      console.error('getAdminStats error:', error);
+      const stats: AdminStats = {
+        totalUsers: 0,
+        totalListings: 0,
+        pendingListings: 0,
+        totalCountries: 0,
+        totalCities: 0,
+        newUsersThisMonth: 0,
+        newListingsThisMonth: 0,
+      };
+      return { data: stats, success: false, message: 'Failed to fetch admin stats' };
+    }
   },
 };
 
@@ -1379,6 +1476,83 @@ export const messagesApi = {
     } catch (error) {
       console.error('messagesApi.getUnreadCount error:', error);
       return { data: { count: 0 }, success: false, message: 'Failed to get unread count' };
+    }
+  },
+};
+
+// ============= NOTIFICATIONS API =============
+export const notificationsApi = {
+  // Get notifications for the current user
+  async getNotifications(
+    includeRead: boolean = false,
+    limit: number = 20
+  ): Promise<{ data: Notification[]; success: boolean; message?: string }> {
+    try {
+      const res = await apiClient.get<{ success: boolean; data: Notification[]; message?: string }>(
+        `/notifications?includeRead=${includeRead}&limit=${limit}`
+      );
+
+      if (res.data?.success) {
+        return { data: res.data.data || [], success: true };
+      }
+
+      return { data: [], success: false, message: res.data?.message || 'Failed to get notifications' };
+    } catch (error) {
+      console.error('notificationsApi.getNotifications error:', error);
+      return { data: [], success: false, message: 'Failed to get notifications' };
+    }
+  },
+
+  // Get unread count
+  async getUnreadCount(): Promise<{ data: { count: number }; success: boolean }> {
+    try {
+      const res = await apiClient.get<{ success: boolean; data: { count: number } }>(
+        '/notifications/unread-count'
+      );
+
+      if (res.data?.success) {
+        return { data: res.data.data, success: true };
+      }
+
+      return { data: { count: 0 }, success: false };
+    } catch (error) {
+      console.error('notificationsApi.getUnreadCount error:', error);
+      return { data: { count: 0 }, success: false };
+    }
+  },
+
+  // Mark notification as read
+  async markAsRead(id: number): Promise<{ success: boolean }> {
+    try {
+      const res = await apiClient.post<{ success: boolean }>(`/notifications/${id}/read`);
+      return { success: res.data?.success || false };
+    } catch (error) {
+      console.error('notificationsApi.markAsRead error:', error);
+      return { success: false };
+    }
+  },
+
+  // Mark all as read
+  async markAllAsRead(): Promise<{ success: boolean; count?: number }> {
+    try {
+      const res = await apiClient.post<{ success: boolean; data: { count: number } }>(
+        '/notifications/mark-all-read'
+      );
+      return { success: res.data?.success || false, count: res.data?.data?.count };
+    } catch (error) {
+      console.error('notificationsApi.markAllAsRead error:', error);
+      return { success: false };
+    }
+  },
+
+  // Delete notification
+  async delete(id: number): Promise<{ success: boolean }> {
+    try {
+      const res = await apiClient.delete<{ success: boolean }>(`/notifications/${id}`);
+      return { success: res.data?.success || false };
+    } catch (error) {
+      console.error('notificationsApi.delete error:', error);
+      return { success: false };
     }
   },
 };

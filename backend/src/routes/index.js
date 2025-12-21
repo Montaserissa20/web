@@ -9,6 +9,8 @@ const animalsRoutes = require('./animals.routes');
 const adminAnimalsRoutes = require('./adminAnimals.routes');
 const reportRoutes = require('./report.routes');
 const messageRoutes = require('./message.routes');
+const notificationRoutes = require('./notification.routes');
+const favoriteRoutes = require('./favorite.routes');
 
 const router = express.Router();
 
@@ -22,5 +24,7 @@ router.use('/animals', animalsRoutes);
 router.use('/admin/animals', adminAnimalsRoutes);
 router.use('/reports', reportRoutes);
 router.use('/messages', messageRoutes);
+router.use('/notifications', notificationRoutes);
+router.use('/favorites', favoriteRoutes);
 
 module.exports = router;

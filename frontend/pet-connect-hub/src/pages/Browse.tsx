@@ -11,18 +11,25 @@ import { Badge } from '@/components/ui/badge';
 import { ListingCard } from '@/components/common/ListingCard';
 import { LoadingCard, LoadingPage } from '@/components/common/LoadingSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
-import { listingsApi } from '@/services/api';
+import { listingsApi, favoritesApi } from '@/services/api';
 import { categories, locations, breedsBySpecies } from '@/data/mockData';
 import { Listing, ListingFilters, SortOption, Species, Gender, AvailabilityStatus } from '@/types';
 import { capitalize } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Browse() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [listings, setListings] = useState<Listing[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [totalItems, setTotalItems] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [favoriteIds, setFavoriteIds] = useState<Set<number>>(new Set());
+  const { isAuthenticated } = useAuth();
+  const { toast } = useToast();
 
   // Filter state
   const [keyword, setKeyword] = useState(searchParams.get('keyword') || '');
@@ -60,22 +67,90 @@ export default function Browse() {
     return filters;
   };
 
-  // Fetch listings
+  const ITEMS_PER_PAGE = 12;
+
+  // Fetch listings (reset when filters change, append when loading more)
   useEffect(() => {
     const fetchListings = async () => {
-      setIsLoading(true);
+      // If currentPage is 1, it's a fresh search (reset)
+      if (currentPage === 1) {
+        setIsLoading(true);
+      } else {
+        setIsLoadingMore(true);
+      }
+
       try {
-        const response = await listingsApi.getAll(buildFilters(), sortBy, currentPage, 12);
+        const response = await listingsApi.getAll(buildFilters(), sortBy, currentPage, ITEMS_PER_PAGE);
         if (response.success) {
-          setListings(response.data);
-          setTotalItems(response.pagination?.totalItems || 0);
+          if (currentPage === 1) {
+            setListings(response.data);
+          } else {
+            // Append new listings to existing ones
+            setListings(prev => [...prev, ...response.data]);
+          }
+          const total = response.pagination?.totalItems || 0;
+          setTotalItems(total);
+          // Check if there are more items to load
+          setHasMore(currentPage * ITEMS_PER_PAGE < total);
         }
       } finally {
         setIsLoading(false);
+        setIsLoadingMore(false);
       }
     };
     fetchListings();
   }, [keyword, selectedSpecies, selectedCountry, selectedCity, priceMin, priceMax, ageMin, ageMax, gender, sortBy, currentPage]);
+
+  // Load more handler
+  const handleLoadMore = () => {
+    if (!isLoadingMore && hasMore) {
+      setCurrentPage(prev => prev + 1);
+    }
+  };
+
+  // Fetch favorite IDs when authenticated
+  useEffect(() => {
+    const fetchFavoriteIds = async () => {
+      if (!isAuthenticated) {
+        setFavoriteIds(new Set());
+        return;
+      }
+      const response = await favoritesApi.getFavoriteIds();
+      if (response.success) {
+        setFavoriteIds(new Set(response.data));
+      }
+    };
+    fetchFavoriteIds();
+  }, [isAuthenticated]);
+
+  // Handle favorite toggle
+  const handleFavorite = async (listingId: string) => {
+    if (!isAuthenticated) {
+      toast({
+        title: 'Login Required',
+        description: 'Please log in to add favorites.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const response = await favoritesApi.toggle(listingId);
+    if (response.success) {
+      const numId = Number(listingId);
+      setFavoriteIds(prev => {
+        const newSet = new Set(prev);
+        if (response.data.favorited) {
+          newSet.add(numId);
+        } else {
+          newSet.delete(numId);
+        }
+        return newSet;
+      });
+      toast({
+        title: response.data.favorited ? 'Added to favorites' : 'Removed from favorites',
+      });
+    }
+  };
 
   // Update URL params
   const updateSearchParams = () => {
@@ -234,6 +309,7 @@ export default function Browse() {
             <SelectItem value="any">Any</SelectItem>
             <SelectItem value="male">Male</SelectItem>
             <SelectItem value="female">Female</SelectItem>
+            <SelectItem value="unknown">Unknown</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -379,18 +455,37 @@ export default function Browse() {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
                 {listings.map((listing) => (
-                  <ListingCard key={listing.id} listing={listing} />
+                  <ListingCard
+                    key={listing.id}
+                    listing={listing}
+                    isFavorited={favoriteIds.has(Number(listing.id))}
+                    onFavorite={handleFavorite}
+                  />
                 ))}
               </div>
             )}
 
-            {/* Pagination placeholder */}
-            {!isLoading && listings.length > 0 && (
-              <div className="flex justify-center mt-8">
-                <Button variant="outline" disabled>
-                  Load More
+            {/* Load More Button */}
+            {!isLoading && listings.length > 0 && hasMore && (
+              <div className="flex flex-col items-center mt-8 gap-2">
+                <p className="text-sm text-muted-foreground">
+                  Showing {listings.length} of {totalItems} listings
+                </p>
+                <Button
+                  variant="outline"
+                  onClick={handleLoadMore}
+                  disabled={isLoadingMore}
+                >
+                  {isLoadingMore ? 'Loading...' : 'Load More'}
                 </Button>
               </div>
+            )}
+
+            {/* Show total when all loaded */}
+            {!isLoading && listings.length > 0 && !hasMore && listings.length === totalItems && totalItems > ITEMS_PER_PAGE && (
+              <p className="text-center text-sm text-muted-foreground mt-8">
+                Showing all {totalItems} listings
+              </p>
             )}
           </div>
         </div>

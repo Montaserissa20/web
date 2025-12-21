@@ -15,7 +15,7 @@ export default function Favorites() {
   useEffect(() => {
     const fetchFavorites = async () => {
       if (!user) return;
-      
+
       try {
         const response = await favoritesApi.getByUser(user.id);
         if (response.success) {
@@ -29,8 +29,12 @@ export default function Favorites() {
     fetchFavorites();
   }, [user]);
 
-  const handleRemoveFavorite = (id: string) => {
-    setFavorites(prev => prev.filter(f => f.id !== id));
+  const handleRemoveFavorite = async (id: string) => {
+    // Call API to remove from favorites
+    const response = await favoritesApi.remove(user?.id || '', id);
+    if (response.success) {
+      setFavorites(prev => prev.filter(f => f.id !== id));
+    }
   };
 
   return (
