@@ -4,15 +4,17 @@
  * This module provides abstracted API functions for the Animal Marketplace.
  *
  * CSRF Token Support:
- * The apiClient includes a place to attach CSRF tokens from cookies/meta tags.
+ * The apiClient includes CSRF tokens from cookies set by the server.
+ * Call initializeCSRF() on app startup to fetch the initial token.
  */
 
 import { AxiosRequestHeaders } from 'axios';
-import apiClient, { getImageUrl } from './httpClient';
+import apiClient, { getImageUrl, fetchCSRFToken } from './httpClient';
 
 
 import {
   User,
+  UserProfile,
   Listing,
   Announcement,
   FAQItem,
@@ -42,24 +44,38 @@ import {
   siteStats,
 } from '@/data/mockData';
 
-// CSRF Token helper
+// CSRF Token helper - reads token from cookie set by server
 const getCSRFToken = (): string | null => {
-  // Try to get from meta tag
+  // Try to get from cookie (set by server via Set-Cookie header)
+  const cookies = document.cookie.split(';');
+  for (const cookie of cookies) {
+    const [name, value] = cookie.trim().split('=');
+    if (name === 'XSRF-TOKEN') {
+      return decodeURIComponent(value);
+    }
+  }
+
+  // Fallback: try meta tag
   const metaTag = document.querySelector('meta[name="csrf-token"]');
   if (metaTag) {
     return metaTag.getAttribute('content');
   }
-  
-  // Try to get from cookie
-  const cookies = document.cookie.split(';');
-  for (const cookie of cookies) {
-    const [name, value] = cookie.trim().split('=');
-    if (name === 'XSRF-TOKEN' || name === 'csrf_token') {
-      return decodeURIComponent(value);
-    }
-  }
-  
+
   return null;
+};
+
+/**
+ * Initialize CSRF protection by fetching a token from the server.
+ * This sets the XSRF-TOKEN cookie that will be included in subsequent requests.
+ * Should be called once on app startup.
+ */
+export const initializeCSRF = async (): Promise<void> => {
+  try {
+    await fetchCSRFToken();
+    console.log('CSRF protection initialized');
+  } catch (error) {
+    console.error('Failed to initialize CSRF protection:', error);
+  }
 };
 
 // Attach CSRF + Auth token if available
@@ -815,6 +831,117 @@ export const usersApi = {
     }
   },
 
+  // Get public profile for any user
+  async getPublicProfile(id: number | string): Promise<ApiResponse<UserProfile>> {
+    try {
+      const res = await apiClient.get<{
+        success: boolean;
+        data: UserProfile;
+        message?: string;
+      }>(`/users/${id}/profile`);
+
+      if (res.data?.success && res.data.data) {
+        return { data: res.data.data, success: true, message: res.data.message };
+      }
+
+      return {
+        data: null as any,
+        success: false,
+        message: res.data.message || 'User not found',
+      };
+    } catch (error) {
+      console.error('usersApi.getPublicProfile error:', error);
+      return {
+        data: null as any,
+        success: false,
+        message: 'Failed to fetch profile',
+      };
+    }
+  },
+
+  // Rate a user
+  async rateUser(userId: number | string, rating: number, review?: string): Promise<ApiResponse<{ rating: number; review?: string }>> {
+    try {
+      const res = await apiClient.post<{
+        success: boolean;
+        data: { rating: number; review?: string };
+        message?: string;
+      }>(`/users/${userId}/rate`, { rating, review });
+
+      if (res.data?.success) {
+        return { data: res.data.data, success: true, message: res.data.message };
+      }
+
+      return {
+        data: null as any,
+        success: false,
+        message: res.data.message || 'Failed to submit rating',
+      };
+    } catch (error) {
+      console.error('usersApi.rateUser error:', error);
+      return {
+        data: null as any,
+        success: false,
+        message: 'Failed to submit rating',
+      };
+    }
+  },
+
+  // Get my rating for a user
+  async getMyRating(userId: number | string): Promise<ApiResponse<{ rating: number; review?: string } | null>> {
+    try {
+      const res = await apiClient.get<{
+        success: boolean;
+        data: { rating: number; review?: string } | null;
+        message?: string;
+      }>(`/users/${userId}/rating/mine`);
+
+      if (res.data?.success) {
+        return { data: res.data.data, success: true, message: res.data.message };
+      }
+
+      return {
+        data: null,
+        success: false,
+        message: res.data.message || 'Failed to fetch rating',
+      };
+    } catch (error) {
+      console.error('usersApi.getMyRating error:', error);
+      return {
+        data: null,
+        success: false,
+        message: 'Failed to fetch rating',
+      };
+    }
+  },
+
+  // Delete my rating for a user
+  async deleteMyRating(userId: number | string): Promise<ApiResponse<null>> {
+    try {
+      const res = await apiClient.delete<{
+        success: boolean;
+        message?: string;
+      }>(`/users/${userId}/rating`);
+
+      if (res.data?.success) {
+        return { data: null, success: true, message: res.data.message };
+      }
+
+      return {
+        data: null,
+        success: false,
+        message: res.data.message || 'Failed to delete rating',
+      };
+    } catch (error) {
+      console.error('usersApi.deleteMyRating error:', error);
+      return {
+        data: null,
+        success: false,
+        message: 'Failed to delete rating',
+      };
+    }
+  },
+
   // 3) Change role (Admin ↔ Moderator ↔ User)
   async updateRole(userId: number | string, role: UserRole): Promise<ApiResponse<User>> {
     try {
@@ -978,6 +1105,23 @@ export const announcementsApi = {
     } catch (err) {
       console.error('Announcement delete failed', err);
       return { data: null as any, success: false, message: 'Failed to delete announcement' };
+    }
+  },
+
+  async uploadImage(file: File): Promise<ApiResponse<{ imageUrl: string }>> {
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+
+      const res = await apiClient.post<ApiResponse<{ imageUrl: string }>>(
+        '/announcements/upload-image',
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      );
+      return res.data;
+    } catch (err) {
+      console.error('Announcement image upload failed', err);
+      return { data: null as any, success: false, message: 'Failed to upload image' };
     }
   },
 };

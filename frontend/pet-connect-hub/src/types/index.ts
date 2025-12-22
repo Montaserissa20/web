@@ -16,6 +16,33 @@ export interface User {
   isBanned: boolean;
 }
 
+// Public user profile (for viewing other users)
+export interface UserProfile {
+  id: string;
+  displayName: string;
+  country: string;
+  city: string;
+  avatar?: string;
+  createdAt: string;
+  rating: number;
+  ratingCount: number;
+  listingsCount: number;
+  ratings: UserRating[];
+}
+
+// User rating/review
+export interface UserRating {
+  id: number;
+  rating: number;
+  review?: string;
+  createdAt: string;
+  rater: {
+    id: string;
+    name: string;
+    avatar?: string;
+  };
+}
+
 // Species types
 export type Species = 'dogs' | 'cats' | 'birds' | 'fish' | 'rabbits' | 'other';
 
@@ -59,6 +86,7 @@ export interface Announcement {
   id: string;
   title: string;
   content: string;
+  imageUrl?: string | null;
   publishDate: string;
   isVisible: boolean;
   createdBy: string;

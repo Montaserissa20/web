@@ -157,6 +157,20 @@ model notifications {
   @@index([is_read], map: "idx_notifications_is_read")
 }
 
+model ratings {
+  id         Int      @id @default(autoincrement()) @db.UnsignedInt
+  rater_id   Int      @db.UnsignedInt
+  rated_id   Int      @db.UnsignedInt
+  rating     Int      @db.TinyInt // 1-5 stars
+  review     String?  @db.Text
+  created_at DateTime @default(now()) @db.Timestamp(0)
+  updated_at DateTime @default(now()) @db.Timestamp(0)
+
+  @@unique([rater_id, rated_id], map: "uc_ratings_rater_rated")
+  @@index([rater_id], map: "fk_ratings_rater")
+  @@index([rated_id], map: "fk_ratings_rated")
+}
+
 enum users_role {
   user
   moderator

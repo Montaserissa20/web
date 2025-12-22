@@ -1,4 +1,4 @@
-import { useEffect } from "react";                 // ⬅️ NEW
+﻿import { useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -7,12 +7,13 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { statsApi } from "@/services/api";         // ⬅️ NEW
+import { statsApi, initializeCSRF } from "@/services/api";
 
 // Public pages
 import Index from "./pages/Index";
 import Browse from "./pages/Browse";
 import ListingDetail from "./pages/ListingDetail";
+import UserProfile from "./pages/UserProfile";
 import FAQ from "./pages/FAQ";
 import Announcements from "./pages/Announcements";
 import SiteMap from "./pages/SiteMap";
@@ -50,30 +51,41 @@ import ModeratorReports from "./pages/moderator/ModeratorReports";
 const queryClient = new QueryClient();
 
 const App = () => {
-  // 🔹 Record a visit once when the app loads
+  const [csrfReady, setCsrfReady] = useState(false);
+
+  // Initialize CSRF protection first, then track visits
   useEffect(() => {
-    // Track immediately on load
-    statsApi.trackVisit().catch((err) => {
-      // optional: log but don’t break the app
-      console.error("Failed to track visit", err);
+    let heartbeatInterval: ReturnType<typeof setInterval>;
+    let handleVisibilityChange: () => void;
+
+    // Initialize CSRF token first, then start tracking
+    initializeCSRF().then(() => {
+      setCsrfReady(true);
+
+      // Track immediately on load
+      statsApi.trackVisit().catch((err) => {
+        console.error("Failed to track visit", err);
+      });
+
+      // Heartbeat: track every 2 minutes to keep user online
+      heartbeatInterval = setInterval(() => {
+        statsApi.trackVisit().catch(() => {});
+      }, 2 * 60 * 1000); // 2 minutes
+
+      // Track when user returns to the tab
+      handleVisibilityChange = () => {
+        if (document.visibilityState === "visible") {
+          statsApi.trackVisit().catch(() => {});
+        }
+      };
+      document.addEventListener("visibilitychange", handleVisibilityChange);
     });
 
-    // Heartbeat: track every 2 minutes to keep user "online"
-    const heartbeatInterval = setInterval(() => {
-      statsApi.trackVisit().catch(() => {});
-    }, 2 * 60 * 1000); // 2 minutes
-
-    // Track when user returns to the tab
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        statsApi.trackVisit().catch(() => {});
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
     return () => {
-      clearInterval(heartbeatInterval);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (heartbeatInterval) clearInterval(heartbeatInterval);
+      if (handleVisibilityChange) {
+        document.removeEventListener("visibilitychange", handleVisibilityChange);
+      }
     };
   }, []);
 
@@ -101,6 +113,7 @@ const App = () => {
                   <Route path="/" element={<Index />} />
                   <Route path="/browse" element={<Browse />} />
                   <Route path="/animals/:species/:slug" element={<ListingDetail />} />
+                  <Route path="/profile/:id" element={<UserProfile />} />
                   <Route path="/faq" element={<FAQ />} />
                   <Route path="/announcements" element={<Announcements />} />
                   <Route path="/sitemap" element={<SiteMap />} />

@@ -22,6 +22,7 @@ export default function CreateListing() {
   const isEditing = !!id;
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isFetching, setIsFetching] = useState(isEditing);
   const [formData, setFormData] = useState({
     title: '',
     slug: '',
@@ -36,10 +37,51 @@ export default function CreateListing() {
     availability: 'available' as AvailabilityStatus,
     images: [] as string[],
   });
+  const [existingImages, setExistingImages] = useState<string[]>([]); // URLs of existing images
   const [imageFiles, setImageFiles] = useState<File[]>([]); // Store actual files for upload
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Auto-generate slug from title
+  // Fetch existing listing data when editing
+  useEffect(() => {
+    if (isEditing && id) {
+      const fetchListing = async () => {
+        setIsFetching(true);
+        try {
+          const response = await listingsApi.getById(id);
+          if (response.success && response.data) {
+            const listing = response.data;
+            setFormData({
+              title: listing.title || '',
+              slug: listing.slug || '',
+              description: listing.description || '',
+              species: listing.species || '',
+              breed: listing.breed || '',
+              age: listing.age?.toString() || '',
+              gender: listing.gender || '',
+              price: listing.price?.toString() || '',
+              country: listing.country || '',
+              city: listing.city || '',
+              availability: listing.availability || 'available',
+              images: listing.images || [],
+            });
+            setExistingImages(listing.images || []);
+          } else {
+            toast({
+              title: 'Error',
+              description: 'Failed to load listing data.',
+              variant: 'destructive',
+            });
+            navigate('/dashboard/listings');
+          }
+        } finally {
+          setIsFetching(false);
+        }
+      };
+      fetchListing();
+    }
+  }, [isEditing, id, navigate, toast]);
+
+  // Auto-generate slug from title (only for new listings)
   useEffect(() => {
     if (formData.title && !isEditing) {
       setFormData(prev => ({
@@ -75,10 +117,13 @@ export default function CreateListing() {
     const files = e.target.files;
     if (!files) return;
 
+    const totalImages = formData.images.length;
+    const remainingSlots = 5 - totalImages;
+
     // Store file objects and create preview URLs
-    Array.from(files).forEach(file => {
+    Array.from(files).slice(0, remainingSlots).forEach(file => {
       // Store the actual file for later upload
-      setImageFiles(prev => [...prev, file].slice(0, 5));
+      setImageFiles(prev => [...prev, file]);
 
       // Create preview using FileReader
       const reader = new FileReader();
@@ -93,11 +138,22 @@ export default function CreateListing() {
   };
 
   const removeImage = (index: number) => {
+    const imageToRemove = formData.images[index];
+    const isExistingImage = existingImages.includes(imageToRemove);
+
     setFormData(prev => ({
       ...prev,
       images: prev.images.filter((_, i) => i !== index),
     }));
-    setImageFiles(prev => prev.filter((_, i) => i !== index));
+
+    if (isExistingImage) {
+      // Remove from existing images list
+      setExistingImages(prev => prev.filter(img => img !== imageToRemove));
+    } else {
+      // Remove from new files (calculate index in imageFiles array)
+      const newImageIndex = index - existingImages.filter(img => formData.images.slice(0, index).includes(img)).length;
+      setImageFiles(prev => prev.filter((_, i) => i !== newImageIndex));
+    }
   };
 
   const validate = () => {
@@ -125,9 +181,12 @@ export default function CreateListing() {
 
     setIsLoading(true);
     try {
+      // Keep existing images that weren't removed
+      const keptExistingImages = existingImages.filter(img => formData.images.includes(img));
+
       const listingData = {
         title: formData.title,
-        slug: slugify(formData.title, Date.now().toString().slice(-4)),
+        slug: isEditing ? formData.slug : slugify(formData.title, Date.now().toString().slice(-4)),
         description: formData.description,
         species: formData.species,
         breed: formData.breed,
@@ -140,6 +199,8 @@ export default function CreateListing() {
         sellerId: user.id,
         sellerName: user.displayName,
         sellerRating: user.rating,
+        // Pass existing images to keep when updating
+        existingImages: isEditing ? keptExistingImages : undefined,
       };
 
       const response = isEditing
@@ -147,12 +208,12 @@ export default function CreateListing() {
         : await listingsApi.create(listingData);
 
       if (response.success && response.data) {
-        // Upload images if we have file objects (new listing or new images)
+        // Upload new images if we have file objects
         if (imageFiles.length > 0) {
           const uploadResponse = await listingsApi.uploadImages(response.data.id, imageFiles);
           if (!uploadResponse.success) {
             console.warn('Failed to upload images:', uploadResponse.message);
-            // Still continue since listing was created
+            // Still continue since listing was created/updated
           }
         }
 
@@ -174,6 +235,17 @@ export default function CreateListing() {
       setIsLoading(false);
     }
   };
+
+  if (isFetching) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading listing data...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

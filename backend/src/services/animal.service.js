@@ -11,7 +11,8 @@ exports.updateListing = async (userId, animalId, data) => {
   const animal = await AnimalModel.getById(animalId);
   if (!animal) throw new Error('Listing not found');
 
-  if (Number(animal.user_id) !== Number(userId)) {
+  // getById returns a DTO with sellerId (string), not user_id
+  if (Number(animal.sellerId) !== Number(userId)) {
     throw new Error('Not allowed to update this listing');
   }
 
@@ -32,8 +33,8 @@ exports.uploadListingImages = async (userId, animalId, imageUrls) => {
   const animal = await AnimalModel.getById(animalId);
   if (!animal) throw new Error('Listing not found');
 
-  // owner-only (or you can later allow admin)
-  if (Number(animal.user_id) !== Number(userId)) {
+  // getById returns a DTO with sellerId (string), not user_id
+  if (Number(animal.sellerId) !== Number(userId)) {
     throw new Error('Not allowed to upload images for this listing');
   }
 
@@ -44,7 +45,8 @@ exports.deleteListingOwner = async (userId, animalId) => {
   const animal = await AnimalModel.getById(animalId);
   if (!animal) throw new Error('Listing not found');
 
-  if (Number(animal.user_id) !== Number(userId)) {
+  // getById returns a DTO with sellerId (string), not user_id
+  if (Number(animal.sellerId) !== Number(userId)) {
     throw new Error('Not allowed to delete this listing');
   }
 

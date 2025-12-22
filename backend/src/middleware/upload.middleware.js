@@ -2,11 +2,26 @@ const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 
-const uploadDir = path.join(process.cwd(), 'uploads', 'animals');
-fs.mkdirSync(uploadDir, { recursive: true });
+// Create upload directories
+const animalsUploadDir = path.join(process.cwd(), 'uploads', 'animals');
+const announcementsUploadDir = path.join(process.cwd(), 'uploads', 'announcements');
+fs.mkdirSync(animalsUploadDir, { recursive: true });
+fs.mkdirSync(announcementsUploadDir, { recursive: true });
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, uploadDir),
+// Storage for animal images
+const animalStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, animalsUploadDir),
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    const safeExt = ext || '.jpg';
+    const name = `${Date.now()}-${Math.round(Math.random() * 1e9)}${safeExt}`;
+    cb(null, name);
+  },
+});
+
+// Storage for announcement images
+const announcementStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, announcementsUploadDir),
   filename: (_req, file, cb) => {
     const ext = path.extname(file.originalname || '').toLowerCase();
     const safeExt = ext || '.jpg';
@@ -27,9 +42,15 @@ function fileFilter(_req, file, cb) {
 const MAX_FILE_SIZE = parseInt(process.env.MAX_UPLOAD_SIZE_MB || '6', 10) * 1024 * 1024;
 
 const uploadAnimalImages = multer({
-  storage,
+  storage: animalStorage,
   fileFilter,
   limits: { fileSize: MAX_FILE_SIZE },
 });
 
-module.exports = { uploadAnimalImages };
+const uploadAnnouncementImage = multer({
+  storage: announcementStorage,
+  fileFilter,
+  limits: { fileSize: MAX_FILE_SIZE },
+});
+
+module.exports = { uploadAnimalImages, uploadAnnouncementImage };

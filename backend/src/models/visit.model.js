@@ -5,7 +5,7 @@ const prisma = require('../config/prismaClient');
 exports.createVisit = async ({ userId, ipAddress, userAgent }) => {
   return prisma.visits.create({
     data: {
-      user_id: userId ?? null,
+      user_id: userId ? Number(userId) : null,
       ip_address: ipAddress ?? null,
       user_agent: userAgent ?? null,
     },

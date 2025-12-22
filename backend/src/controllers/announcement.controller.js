@@ -83,3 +83,24 @@ exports.remove = async (req, res) => {
     res.status(500).json({ success: false, message: 'Failed to delete announcement' });
   }
 };
+
+// POST /api/announcements/upload-image
+exports.uploadImage = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No image file provided' });
+    }
+
+    // Construct the URL for the uploaded image
+    const imageUrl = `/uploads/announcements/${req.file.filename}`;
+
+    res.json({
+      success: true,
+      data: { imageUrl },
+      message: 'Image uploaded successfully',
+    });
+  } catch (err) {
+    console.error('upload announcement image error', err);
+    res.status(500).json({ success: false, message: 'Failed to upload image' });
+  }
+};

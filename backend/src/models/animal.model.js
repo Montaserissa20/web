@@ -24,7 +24,7 @@ function toListingDTO(animal) {
   };
 }
 
-function toListingWithImages(animal) {
+function toListingWithImages(animal, sellerRating = 0) {
   const base = toListingDTO(animal);
   const images = Array.isArray(animal.animal_images)
     ? animal.animal_images.map((img) => img.image_url)
@@ -38,11 +38,22 @@ function toListingWithImages(animal) {
     coverImage: images[0] || null,
     sellerId: String(animal.user_id),
     sellerName: animal.user?.name || animal.users?.name || 'Seller',
+    sellerRating: sellerRating,
   };
 }
 
-function toDetailsDTO(animal) {
-  return toListingWithImages(animal);
+// Helper to get seller's average rating
+async function getSellerRating(userId) {
+  const result = await prisma.ratings.aggregate({
+    where: { rated_id: Number(userId) },
+    _avg: { rating: true },
+  });
+  return result._avg.rating || 0;
+}
+
+async function toDetailsDTO(animal) {
+  const sellerRating = await getSellerRating(animal.user_id);
+  return toListingWithImages(animal, sellerRating);
 }
 
 exports.createListing = async (userId, data) => {
@@ -104,7 +115,15 @@ exports.getListingBySlug = async (slug) => {
   });
 
   if (!animal) return null;
-  return toDetailsDTO(animal);
+
+  // Fetch user separately since there's no relation defined
+  const user = await prisma.users.findUnique({
+    where: { id: animal.user_id },
+    select: { id: true, name: true, avatar_url: true },
+  });
+  animal.user = user;
+
+  return await toDetailsDTO(animal);
 };
 
 exports.addImages = async (animalId, imageUrls) => {
@@ -126,10 +145,20 @@ exports.addImages = async (animalId, imageUrls) => {
 };
 
 exports.getById = async (id) => {
-  return prisma.animals.findUnique({
+  const animal = await prisma.animals.findUnique({
     where: { id: Number(id) },
     include: { animal_images: true },
   });
+  if (!animal) return null;
+
+  // Fetch user separately since there's no relation defined
+  const user = await prisma.users.findUnique({
+    where: { id: animal.user_id },
+    select: { id: true, name: true, avatar_url: true },
+  });
+  animal.user = user;
+
+  return await toDetailsDTO(animal);
 };
 
 exports.updateListing = async (id, data) => {
@@ -206,3 +235,4 @@ exports.getOwnerId = async (id) => {
 
 exports.toListingDTO = toListingDTO;
 exports.toListingWithImages = toListingWithImages;
+exports.getSellerRating = getSellerRating;

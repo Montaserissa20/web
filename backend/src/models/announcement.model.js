@@ -8,6 +8,7 @@ function mapAnnouncement(db) {
     id: String(db.id),
     title: db.title,
     content: db.content,
+    imageUrl: db.image_url || null,
     publishDate: (db.published_at ?? db.created_at).toISOString(),
     isVisible: db.is_visible ?? true,
     createdBy: db.created_by ? String(db.created_by) : 'Admin',

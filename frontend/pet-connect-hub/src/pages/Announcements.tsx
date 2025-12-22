@@ -5,6 +5,7 @@ import { LoadingPage } from '@/components/common/LoadingSpinner';
 import { announcementsApi } from '@/services/api';
 import { Announcement } from '@/types';
 import { formatDate } from '@/lib/utils';
+import { getImageUrl } from '@/services/httpClient';
 
 export default function Announcements() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -40,6 +41,15 @@ export default function Announcements() {
         <div className="max-w-3xl mx-auto space-y-6">
           {announcements.map((item) => (
             <Card key={item.id} className="overflow-hidden">
+              {item.imageUrl && (
+                <div className="w-full h-48 overflow-hidden">
+                  <img
+                    src={getImageUrl(item.imageUrl)}
+                    alt={item.title}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
               <CardHeader className="bg-muted/30">
                 <div className="flex items-start justify-between">
                   <CardTitle className="text-xl">{item.title}</CardTitle>
