@@ -13,6 +13,7 @@ router.get('/', controller.getAll);
 router.post('/', controller.create);
 router.put('/:id', controller.update);
 router.delete('/:id', controller.remove);
+router.get('/:id', controller.getById);
 
 // Upload image for announcement
 router.post('/upload-image', uploadAnnouncementImage.single('image'), controller.uploadImage);

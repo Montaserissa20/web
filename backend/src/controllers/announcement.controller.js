@@ -104,3 +104,24 @@ exports.uploadImage = async (req, res) => {
     res.status(500).json({ success: false, message: 'Failed to upload image' });
   }
 };
+// GET /api/announcements/:id
+exports.getById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const item = await AnnouncementModel.getById(id);
+
+    if (!item) {
+      return res.status(404).json({ success: false, message: 'Announcement not found' });
+    }
+
+    // If you want to hide non-visible announcements from public users:
+    // if (item.isVisible === false && !req.user) {
+    //   return res.status(404).json({ success: false, message: 'Announcement not found' });
+    // }
+
+    res.json({ success: true, data: item });
+  } catch (err) {
+    console.error('getById announcement error', err);
+    res.status(500).json({ success: false, message: 'Failed to load announcement' });
+  }
+};

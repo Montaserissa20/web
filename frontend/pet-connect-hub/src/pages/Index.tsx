@@ -6,15 +6,19 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { ListingCard } from '@/components/common/ListingCard';
 import { LoadingCard } from '@/components/common/LoadingSpinner';
-import { listingsApi } from '@/services/api';
+import { listingsApi, statsApi } from '@/services/api';
 import { categories, siteStats } from '@/data/mockData';
 import { Listing } from '@/types';
-import { cn } from '@/lib/utils';
 
 export default function Index() {
   const [searchQuery, setSearchQuery] = useState('');
   const [latestListings, setLatestListings] = useState<Listing[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // NEW: real stats
+  const [totalListings, setTotalListings] = useState<number>(siteStats.totalListings);
+  const [totalUsers, setTotalUsers] = useState<number>(siteStats.totalUsers);
+  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const fetchLatest = async () => {
@@ -28,6 +32,19 @@ export default function Index() {
       }
     };
     fetchLatest();
+  }, []);
+
+  // NEW: fetch homepage stats
+  useEffect(() => {
+    const loadHomeStats = async () => {
+      const res = await statsApi.getHomeStats();
+      if (res.success) {
+        setTotalListings(res.data.totalListings);
+        setTotalUsers(res.data.totalUsers);
+        setCategoryCounts(res.data.categoryCounts || {});
+      }
+    };
+    loadHomeStats();
   }, []);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -60,20 +77,27 @@ export default function Index() {
       {/* Hero Section */}
       <section className="relative overflow-hidden gradient-hero py-20 lg:py-32">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iNCIvPjwvZz48L2c+PC9zdmc+')] opacity-50" />
-        
+
         <div className="container-custom relative">
           <div className="max-w-3xl mx-auto text-center">
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-display font-bold text-primary-foreground mb-6 animate-slide-up">
               Find Your Perfect
               <span className="block">Furry Companion</span>
             </h1>
-            <p className="text-lg sm:text-xl text-primary-foreground/90 mb-8 max-w-2xl mx-auto animate-slide-up" style={{ animationDelay: '0.1s' }}>
-              Discover thousands of adorable pets looking for loving homes. 
+            <p
+              className="text-lg sm:text-xl text-primary-foreground/90 mb-8 max-w-2xl mx-auto animate-slide-up"
+              style={{ animationDelay: '0.1s' }}
+            >
+              Discover thousands of adorable pets looking for loving homes.
               From playful puppies to elegant cats, your new best friend is waiting.
             </p>
 
             {/* Search bar */}
-            <form onSubmit={handleSearch} className="max-w-xl mx-auto animate-slide-up" style={{ animationDelay: '0.2s' }}>
+            <form
+              onSubmit={handleSearch}
+              className="max-w-xl mx-auto animate-slide-up"
+              style={{ animationDelay: '0.2s' }}
+            >
               <div className="flex gap-2 bg-card/95 backdrop-blur-sm p-2 rounded-2xl shadow-xl">
                 <Input
                   type="search"
@@ -82,7 +106,11 @@ export default function Index() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="flex-1 border-0 bg-transparent text-foreground placeholder:text-muted-foreground focus-visible:ring-0 h-12 text-lg"
                 />
-                <Button type="submit" size="lg" className="px-8 h-12 bg-secondary hover:bg-secondary/90 text-secondary-foreground">
+                <Button
+                  type="submit"
+                  size="lg"
+                  className="px-8 h-12 bg-secondary hover:bg-secondary/90 text-secondary-foreground"
+                >
                   <Search className="h-5 w-5 mr-2" />
                   Search
                 </Button>
@@ -90,17 +118,26 @@ export default function Index() {
             </form>
 
             {/* Stats */}
-            <div className="flex flex-wrap justify-center gap-8 mt-12 animate-slide-up" style={{ animationDelay: '0.3s' }}>
+            <div
+              className="flex flex-wrap justify-center gap-8 mt-12 animate-slide-up"
+              style={{ animationDelay: '0.3s' }}
+            >
               <div className="text-center">
-                <div className="text-3xl font-bold text-primary-foreground">{siteStats.totalListings.toLocaleString()}+</div>
+                <div className="text-3xl font-bold text-primary-foreground">
+                  {Number(totalListings).toLocaleString()}+
+                </div>
                 <div className="text-sm text-primary-foreground/80">Active Listings</div>
               </div>
               <div className="text-center">
-                <div className="text-3xl font-bold text-primary-foreground">{siteStats.totalUsers.toLocaleString()}+</div>
+                <div className="text-3xl font-bold text-primary-foreground">
+                  {Number(totalUsers).toLocaleString()}+
+                </div>
                 <div className="text-sm text-primary-foreground/80">Happy Users</div>
               </div>
               <div className="text-center">
-                <div className="text-3xl font-bold text-primary-foreground">{siteStats.successfulAdoptions.toLocaleString()}+</div>
+                <div className="text-3xl font-bold text-primary-foreground">
+                  {siteStats.successfulAdoptions.toLocaleString()}+
+                </div>
                 <div className="text-sm text-primary-foreground/80">Successful Adoptions</div>
               </div>
             </div>
@@ -125,25 +162,30 @@ export default function Index() {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {categories.map((category, index) => (
-              <Link
-                key={category.id}
-                to={`/browse?species=${category.id}`}
-                className="group"
-                style={{ animationDelay: `${index * 0.05}s` }}
-              >
-                <Card className="h-full transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border-border/50 group-hover:border-primary/50">
-                  <CardContent className="p-6 text-center">
-                    <div className="text-4xl mb-3 transition-transform duration-300 group-hover:scale-110">
-                      {category.icon}
-                    </div>
-                    <h3 className="font-semibold text-foreground mb-1">{category.name}</h3>
-                    <p className="text-xs text-muted-foreground mb-2">{category.description}</p>
-                    <span className="text-sm text-primary font-medium">{category.count} listings</span>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
+            {categories.map((category, index) => {
+             const realCount = categoryCounts?.[category.id] ?? 0; // fallback to ZERO (no mock)
+              return (
+                <Link
+                  key={category.id}
+                  to={`/browse?species=${category.id}`}
+                  className="group"
+                  style={{ animationDelay: `${index * 0.05}s` }}
+                >
+                  <Card className="h-full transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border-border/50 group-hover:border-primary/50">
+                    <CardContent className="p-6 text-center">
+                      <div className="text-4xl mb-3 transition-transform duration-300 group-hover:scale-110">
+                        {category.icon}
+                      </div>
+                      <h3 className="font-semibold text-foreground mb-1">{category.name}</h3>
+                      <p className="text-xs text-muted-foreground mb-2">{category.description}</p>
+                      <span className="text-sm text-primary font-medium">
+                        {Number(realCount).toLocaleString()} listings
+                      </span>
+                    </CardContent>
+                  </Card>
+                </Link>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -171,9 +213,7 @@ export default function Index() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {isLoading
               ? Array.from({ length: 6 }).map((_, i) => <LoadingCard key={i} />)
-              : latestListings.map((listing) => (
-                  <ListingCard key={listing.id} listing={listing} />
-                ))}
+              : latestListings.map((listing) => <ListingCard key={listing.id} listing={listing} />)}
           </div>
 
           <div className="text-center mt-8 sm:hidden">
@@ -231,7 +271,9 @@ export default function Index() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-foreground mb-1">Verified Sellers</h3>
-                    <p className="text-muted-foreground">All our sellers go through a verification process to ensure safe transactions.</p>
+                    <p className="text-muted-foreground">
+                      All our sellers go through a verification process to ensure safe transactions.
+                    </p>
                   </div>
                 </div>
                 <div className="flex gap-4">
@@ -240,7 +282,9 @@ export default function Index() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-foreground mb-1">Active Community</h3>
-                    <p className="text-muted-foreground">Join thousands of pet lovers and share experiences with fellow animal enthusiasts.</p>
+                    <p className="text-muted-foreground">
+                      Join thousands of pet lovers and share experiences with fellow animal enthusiasts.
+                    </p>
                   </div>
                 </div>
                 <div className="flex gap-4">
@@ -249,7 +293,9 @@ export default function Index() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-foreground mb-1">Adoption First</h3>
-                    <p className="text-muted-foreground">We promote responsible pet ownership and support animal adoption initiatives.</p>
+                    <p className="text-muted-foreground">
+                      We promote responsible pet ownership and support animal adoption initiatives.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -260,6 +306,7 @@ export default function Index() {
                 </Button>
               </Link>
             </div>
+
             <div className="relative">
               <div className="aspect-square rounded-3xl overflow-hidden shadow-2xl">
                 <img
@@ -272,7 +319,10 @@ export default function Index() {
                 <div className="flex items-center gap-3">
                   <div className="flex -space-x-2">
                     {['🐕', '🐱', '🐰'].map((emoji, i) => (
-                      <div key={i} className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-lg ring-2 ring-card">
+                      <div
+                        key={i}
+                        className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-lg ring-2 ring-card"
+                      >
                         {emoji}
                       </div>
                     ))}
@@ -284,6 +334,7 @@ export default function Index() {
                 </div>
               </div>
             </div>
+
           </div>
         </div>
       </section>

@@ -79,3 +79,25 @@ exports.getAdminStats = async () => {
     newListingsThisMonth,
   };
 };
+exports.getHomeStats = async () => {
+  // ✅ ONLY approved listings
+  const totalListings = await prisma.animals.count({
+    where: { status: 'approved' },
+  });
+
+  const totalUsers = await prisma.users.count();
+
+  // ✅ ONLY approved listings grouped by species
+  const grouped = await prisma.animals.groupBy({
+    by: ['species'],
+    where: { status: 'approved' },
+    _count: { _all: true },
+  });
+
+  const categoryCounts = grouped.reduce((acc, row) => {
+    acc[row.species] = row._count._all;
+    return acc;
+  }, {});
+
+  return { totalListings, totalUsers, categoryCounts };
+};

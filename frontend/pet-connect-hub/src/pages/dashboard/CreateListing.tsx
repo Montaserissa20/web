@@ -281,18 +281,6 @@ export default function CreateListing() {
                 />
                 {errors.title && <p className="text-sm text-destructive">{errors.title}</p>}
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="slug">URL Slug</Label>
-                <Input
-                  id="slug"
-                  value={formData.slug}
-                  onChange={(e) => handleChange('slug', e.target.value)}
-                  placeholder="adorable-golden-retriever-puppy"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Preview: /animals/{formData.species || 'species'}/{formData.slug || 'your-listing-slug'}
-                </p>
-              </div>
             </div>
 
             <div className="space-y-2">

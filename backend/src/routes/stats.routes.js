@@ -16,5 +16,7 @@ router.get('/dashboard', authMiddleware, StatsController.getUserDashboardStats);
 
 // Get admin stats (requires admin role)
 router.get('/admin', authMiddleware, requireRole('admin', 'moderator'), StatsController.getAdminStats);
+router.get('/home', StatsController.getHomeStats);
+
 
 module.exports = router;

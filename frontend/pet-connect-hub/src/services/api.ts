@@ -1491,6 +1491,21 @@ export const statsApi = {
       return { data: stats, success: false, message: 'Failed to fetch admin stats' };
     }
   },
+   async getHomeStats(): Promise<ApiResponse<{ totalListings: number; totalUsers: number; categoryCounts: Record<string, number> }>> {
+    try {
+      const res = await apiClient.get<
+        ApiResponse<{ totalListings: number; totalUsers: number; categoryCounts: Record<string, number> }>
+      >('/stats/home');
+      return res.data;
+    } catch (err) {
+      console.error('stats getHomeStats failed', err);
+      return {
+        success: false,
+        data: { totalListings: 0, totalUsers: 0, categoryCounts: {} },
+        message: 'Failed to load stats',
+      };
+    }
+  },
 };
 
 // ============ MESSAGES API ============

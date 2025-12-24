@@ -4,7 +4,14 @@ import { Eye, EyeOff, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
@@ -23,73 +30,58 @@ export default function Login() {
 
   const validate = () => {
     const newErrors: typeof errors = {};
-    
+
     if (!email) {
       newErrors.email = 'Email is required';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       newErrors.email = 'Invalid email format';
     }
-    
+
     if (!password) {
       newErrors.password = 'Password is required';
     } else if (password.length < 4) {
       newErrors.password = 'Password must be at least 4 characters';
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  if (!validate()) return;
+    if (!validate()) return;
 
-  const result = await login(email, password);
+    const result = await login(email, password);
 
-  if (result.success) {
-    const role = result.data?.role;
+    if (result.success) {
+      const role = result.data?.role;
 
-    // Default for normal users
-    let target = '/dashboard';
+      // Default for normal users
+      let target = '/dashboard';
 
-    if (role === 'admin') {
-      target = '/admin';
-    } else if (role === 'moderator') {
-      target = '/moderator';
-    } else if (from && from !== '/login') {
-      // if they came from a protected page, send them back there
-      target = from;
+      if (role === 'admin') {
+        target = '/admin';
+      } else if (role === 'moderator') {
+        target = '/moderator';
+      } else if (from && from !== '/login') {
+        // if they came from a protected page, send them back there
+        target = from;
+      }
+
+      toast({
+        title: 'Welcome back!',
+        description: 'You have successfully logged in.',
+      });
+
+      navigate(target, { replace: true });
+    } else {
+      toast({
+        title: 'Login failed',
+        description: result.message,
+        variant: 'destructive',
+      });
     }
-
-    toast({
-      title: 'Welcome back!',
-      description: 'You have successfully logged in.',
-    });
-
-    navigate(target, { replace: true });
-  } else {
-    toast({
-      title: 'Login failed',
-      description: result.message,
-      variant: 'destructive',
-    });
-  }
-};
-
-  
-
-  // Demo accounts for testing
-  const demoAccounts = [
-    { email: 'admin@petmarket.com', password: 'admin', label: 'Admin' },
-    { email: 'mod@petmarket.com', password: 'mod', label: 'Moderator' },
-    { email: 'john@example.com', password: 'user', label: 'User' },
-  ];
-
-  const fillDemoAccount = (account: typeof demoAccounts[0]) => {
-    setEmail(account.email);
-    setPassword(account.password);
-    setErrors({});
   };
 
   return (
@@ -99,7 +91,9 @@ export default function Login() {
         <div className="text-center">
           <Link to="/" className="inline-flex items-center gap-2">
             <span className="text-4xl">🐾</span>
-            <span className="font-display text-2xl font-bold text-primary">PetMarket</span>
+            <span className="font-display text-2xl font-bold text-primary">
+              PetMarket
+            </span>
           </Link>
         </div>
 
@@ -108,6 +102,7 @@ export default function Login() {
             <CardTitle className="text-2xl">Welcome Back</CardTitle>
             <CardDescription>Sign in to your account to continue</CardDescription>
           </CardHeader>
+
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
@@ -135,6 +130,7 @@ export default function Login() {
                     Forgot password?
                   </Link>
                 </div>
+
                 <div className="relative">
                   <Input
                     id="password"
@@ -149,9 +145,14 @@ export default function Login() {
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
                   </button>
                 </div>
+
                 {errors.password && (
                   <p className="text-sm text-destructive">{errors.password}</p>
                 )}
@@ -171,27 +172,8 @@ export default function Login() {
                 )}
               </Button>
             </form>
-
-            {/* Demo accounts */}
-            <div className="mt-6 pt-6 border-t border-border">
-              <p className="text-xs text-muted-foreground text-center mb-3">
-                Quick login (for testing):
-              </p>
-              <div className="flex flex-wrap gap-2 justify-center">
-                {demoAccounts.map((account) => (
-                  <Button
-                    key={account.email}
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => fillDemoAccount(account)}
-                  >
-                    {account.label}
-                  </Button>
-                ))}
-              </div>
-            </div>
           </CardContent>
+
           <CardFooter className="justify-center">
             <p className="text-sm text-muted-foreground">
               Don't have an account?{' '}

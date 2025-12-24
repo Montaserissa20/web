@@ -70,3 +70,12 @@ exports.getAdminStats = async (req, res) => {
     res.status(500).json({ success: false, message: 'Failed to fetch admin stats' });
   }
 };
+exports.getHomeStats = async (req, res) => {
+  try {
+    const stats = await StatsService.getHomeStats();
+    res.json({ success: true, data: stats });
+  } catch (err) {
+    console.error('getHomeStats error:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch home stats' });
+  }
+};
